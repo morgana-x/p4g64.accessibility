@@ -20,6 +20,7 @@ internal unsafe class Dialogue
     private DialogExecutionInfo* _lastDialog = (DialogExecutionInfo*)0;
     private TextStruct* _lastSpeaker;
     private int _lastPage = -1;
+    private short _lastSelected = -1;
 
     internal Dialogue(IReloadedHooks hooks)
     {
@@ -44,8 +45,8 @@ internal unsafe class Dialogue
         // If we're starting the last dialog we looked at again clear it so the screen reader outputs again
         // (We could probably not check and just always clear when this is called, not 100% sure)
         DialogExecutionInfo* dialog = _playedDialog[executionId].Info;
-        Log($"Starting dialog 0x{(nuint)dialog:X}");
-        if(dialog == _lastDialog)
+        LogDebug($"Starting dialog 0x{(nuint)dialog:X}");
+        if (dialog == _lastDialog)
         {
             _lastDialog = (DialogExecutionInfo*)0;
         }
@@ -57,40 +58,65 @@ internal unsafe class Dialogue
     {
         var res = _drawDialogHook.OriginalFunction(dialogInfo);
 
-        // This thing gets constantly called, if there's no dialog actually being drawn we don't care
-        if (dialogInfo->DialogText == (DialogExecutionInfo*)0)
-            return res;
+        if (dialogInfo->DialogText != (DialogExecutionInfo*)0)
+            SpeakMessage(dialogInfo);
 
-        // Only speak out each bit of dialog once
-        if(_lastDialog != dialogInfo || (dialogInfo->CurrentPage != _lastPage && dialogInfo->CurrentPage != dialogInfo->PageCount))
-        {
-            Log($"Current page is {dialogInfo->CurrentPage} and last was {_lastPage}");
-            Log($"Number of pages is {dialogInfo->PageCount}");
-            Log($"Current dialog info is at 0x{(nuint)dialogInfo:x} and last was at 0x{_lastPage:X}");
-            StringBuilder sb = new();
-            var speakerName = dialogInfo->SpeakerNameText;
-            if (speakerName != null && (_lastDialog != dialogInfo || speakerName != _lastSpeaker))
-            {
-                var speakerNameStr = dialogInfo->SpeakerNameText->ToString();
-                //Log($"Speaker name is \"{speakerNameStr}\"");
-                if(!string.IsNullOrWhiteSpace(speakerNameStr))
-                {
-                    sb.Append(speakerNameStr + ": ");
-                }
-            }
-
-            sb.Append(dialogInfo->DialogText->ToString());
-            var text = SanitiseDialog(sb.ToString());
-
-            Log($"Outputting dialog \"{text}\"");
-            Tolk.Output(text, true);
-
-            _lastDialog = dialogInfo;
-            _lastPage = _lastDialog->CurrentPage;
-            _lastSpeaker = speakerName;
-        }
+        if (dialogInfo->SelectionText != (DialogExecutionInfo*)0)
+            SpeakSelection(dialogInfo);
 
         return res;
+    }
+
+    private void SpeakMessage(DialogExecutionInfo* dialogInfo)
+    {
+        // Only speak out each bit of dialog once
+        if (_lastDialog == dialogInfo && (dialogInfo->CurrentPage == _lastPage || dialogInfo->CurrentPage == dialogInfo->PageCount))
+            return;
+
+        LogDebug($"Current page is {dialogInfo->CurrentPage} and last was {_lastPage}");
+        LogDebug($"Number of pages is {dialogInfo->PageCount}");
+        LogDebug($"Current dialog info is at 0x{(nuint)dialogInfo:x} and last was at 0x{_lastPage:X}");
+        StringBuilder sb = new();
+        var speakerName = dialogInfo->SpeakerNameText;
+        if (speakerName != null && (_lastDialog != dialogInfo || speakerName != _lastSpeaker))
+        {
+            var speakerNameStr = dialogInfo->SpeakerNameText->ToString();
+            if (!string.IsNullOrWhiteSpace(speakerNameStr))
+            {
+                sb.Append(speakerNameStr + ": ");
+            }
+        }
+
+        sb.Append(dialogInfo->DialogText->ToString());
+        var text = SanitiseDialog(sb.ToString());
+
+        LogDebug($"Outputting dialog \"{text}\"");
+        Tolk.Output(text, true);
+
+        _lastDialog = dialogInfo;
+        _lastPage = _lastDialog->CurrentPage;
+        _lastSpeaker = speakerName;
+    }
+
+    private void SpeakSelection(DialogExecutionInfo* dialogInfo)
+    {
+        // Only speak out the current selection once
+        if (_lastDialog == dialogInfo && dialogInfo->SelectedOption == _lastSelected)
+            return;
+
+        var selectedOption = dialogInfo->SelectedOption;
+        var optionLine = dialogInfo->SelectionText->GetLine(selectedOption);
+        if(optionLine == null)
+        {
+            _lastSelected = selectedOption;
+            return;
+        }
+
+        var text = optionLine->ToString();
+        LogDebug($"Outputting selection \"{text}\"");
+        Tolk.Output(text, true);
+
+        _lastSelected = selectedOption;
     }
 
     /// <summary>
@@ -99,7 +125,7 @@ internal unsafe class Dialogue
     /// <returns>A sanitised version of the dialog</returns>
     private string SanitiseDialog(string dialog)
     {
-        if(dialog.StartsWith("> "))
+        if (dialog.StartsWith("> "))
         {
             dialog = dialog.Substring(2);
         }
@@ -119,9 +145,21 @@ internal unsafe class Dialogue
     {
         [FieldOffset(0x20)]
         internal TextStruct* SpeakerNameText;
-        
+
         [FieldOffset(0x38)]
         internal TextStruct* DialogText;
+
+        [FieldOffset(0x70)]
+        internal TextStruct* SelectionText;
+
+        [FieldOffset(0x7e)]
+        internal short SelectedOption;
+
+        [FieldOffset(0x80)]
+        internal short LastSelectedOption;
+
+        [FieldOffset(0x82)]
+        internal short NumSelectionOptions;
 
         [FieldOffset(0x48)]
         internal short CurrentPage;

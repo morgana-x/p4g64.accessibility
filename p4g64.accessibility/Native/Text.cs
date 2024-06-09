@@ -19,14 +19,21 @@ internal unsafe class Text
             StringBuilder sb = new();
             for (TextLine* line = Lines; line != (TextLine*)0; line = line->NextLine)
             {
-                for (TextCharacter* character = line->Characters; character != (TextCharacter*)0; character = character->NextCharacter)
-                {
-                    //Utils.Log($"{DecodeChar(character->Character)}: {character->Character:X}");
-                    sb.Append(DecodeChar(character->Character));
-                }
+                sb.Append(line->ToString());
                 sb.Append(' ');
             }
             return sb.ToString();
+        }
+
+        public TextLine* GetLine(int index)
+        {
+            int i = 0;
+            for (TextLine* line = Lines; line != (TextLine*)0 && i <= index; line = line->NextLine, i++)
+            {
+                if (i == index)
+                    return line;
+            }
+            return null;
         }
     }
 
@@ -46,6 +53,17 @@ internal unsafe class Text
 
         [FieldOffset(0x38)]
         internal TextLine* NextLine;
+
+        public override string ToString()
+        {
+            StringBuilder sb = new();
+            for (TextCharacter* character = Characters; character != (TextCharacter*)0; character = character->NextCharacter)
+            {
+                //Utils.Log($"{DecodeChar(character->Character)}: {character->Character:X}");
+                sb.Append(DecodeChar(character->Character));
+            }
+            return sb.ToString();
+        }
     }
 
     [StructLayout(LayoutKind.Explicit)]
