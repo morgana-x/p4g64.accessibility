@@ -3,6 +3,7 @@ using p4g64.accessibility.Components;
 using p4g64.accessibility.Configuration;
 using p4g64.accessibility.Template;
 using Reloaded.Hooks.ReloadedII.Interfaces;
+using Reloaded.Memory.Streams;
 using Reloaded.Mod.Interfaces;
 using static p4g64.accessibility.Utils;
 
@@ -45,6 +46,7 @@ public class Mod : ModBase // <= Do not Remove.
 
     private Dialogue _dialogue;
     private TitleBar _titleBar;
+    private VibrationNavigation _vibrationNav;
 
     public Mod(ModContext context)
     {
@@ -54,24 +56,35 @@ public class Mod : ModBase // <= Do not Remove.
         _owner = context.Owner;
         _configuration = context.Configuration;
         _modConfig = context.ModConfig;
+        
 
         Initialise(_logger, _configuration, _modLoader);
         var modDir = _modLoader.GetDirectoryForModId(_modConfig.ModId);
 
         // Add the mod's folder to the path so tolk will load screen reader dlls
         Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + ";" + modDir, EnvironmentVariableTarget.Process);
-
+        _vibrationNav = new VibrationNavigation(_logger);
         Log("Loading tolk");
-        Tolk.Load();
-
-        if(!Tolk.IsLoaded())
+        try
         {
-            LogError("Tolk failed to load, your mod files may be corrupted!");
+            Tolk.Load();
+
+
+
+            if (!Tolk.IsLoaded())
+            {
+                LogError("Tolk failed to load, your mod files may be corrupted!");
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error loading Tolk: " + ex);
             return;
         }
-
         _dialogue = new Dialogue(_hooks!);
         _titleBar = new TitleBar(_hooks!);
+        
     }
 
     #region Standard Overrides
