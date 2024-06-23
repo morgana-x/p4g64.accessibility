@@ -64,25 +64,20 @@ public class Mod : ModBase // <= Do not Remove.
         AtlusEncoding.Initiailse(_modLoader.GetDirectoryForModId(_modConfig.ModId));
         var modDir = _modLoader.GetDirectoryForModId(_modConfig.ModId);
 
+
+        _vibrationNav = new VibrationNavigation(_logger, _hooks);
+
         // Add the mod's folder to the path so tolk will load screen reader dlls
         Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + ";" + modDir, EnvironmentVariableTarget.Process);
-        _vibrationNav = new VibrationNavigation(_logger);
+
         Log("Loading tolk");
-        try
+        Tolk.Load();
+
+
+
+        if (!Tolk.IsLoaded())
         {
-            Tolk.Load();
-
-
-
-            if (!Tolk.IsLoaded())
-            {
-                LogError("Tolk failed to load, your mod files may be corrupted!");
-                return;
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error loading Tolk: " + ex);
+            LogError("Tolk failed to load, your mod files may be corrupted!");
             return;
         }
         _dialogue = new Dialogue(_hooks!);
