@@ -1,6 +1,8 @@
 ﻿using DavyKager;
 using p4g64.accessibility.Components;
 using p4g64.accessibility.Configuration;
+using p4g64.accessibility.Native;
+using p4g64.accessibility.Native.Text;
 using p4g64.accessibility.Template;
 using Reloaded.Hooks.ReloadedII.Interfaces;
 using Reloaded.Memory.Streams;
@@ -59,6 +61,7 @@ public class Mod : ModBase // <= Do not Remove.
         
 
         Initialise(_logger, _configuration, _modLoader);
+        AtlusEncoding.Initiailse(_modLoader.GetDirectoryForModId(_modConfig.ModId));
         var modDir = _modLoader.GetDirectoryForModId(_modConfig.ModId);
 
         // Add the mod's folder to the path so tolk will load screen reader dlls
