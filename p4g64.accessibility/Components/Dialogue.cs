@@ -105,14 +105,13 @@ internal unsafe class Dialogue
             return;
 
         var selectedOption = dialogInfo->SelectedOption;
-        var optionLine = dialogInfo->SelectionText->GetLine(selectedOption);
-        if(optionLine == null)
+        if (selectedOption == -1)
         {
             _lastSelected = selectedOption;
             return;
         }
-
-        var text = optionLine->ToString();
+        
+        var text = dialogInfo->SelectionText->GetSelection(selectedOption);
         LogDebug($"Outputting selection \"{text}\"");
         Tolk.Output(text, true);
 

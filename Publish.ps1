@@ -162,7 +162,7 @@ param (
     $UseScriptDirectory=$True,
 
     ## => User Config <= ## 
-    $ProjectPath = "p4g64.accessibility.csproj",
+    $ProjectPath = "p4g64.accessibility/p4g64.accessibility.csproj",
     $PackageName = "p4g64.accessibility",
     $PublishOutputDir = "Publish/ToUpload",
 

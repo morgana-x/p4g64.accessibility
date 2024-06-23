@@ -59,4 +59,10 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\Submodules\Tolk\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
