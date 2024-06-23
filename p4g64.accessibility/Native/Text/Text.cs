@@ -1,14 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace p4g64.accessibility.Native;
+namespace p4g64.accessibility.Native.Text;
 
 internal unsafe class Text
 {
+    // TODO this could probably be done using an encoding or something
+    private static string? DecodeChar(byte* character)
+    {
+        byte[] chars = { character[1], character[0] };
+        var decoded = AtlusEncoding.P4.GetString(chars);
+        if (decoded == "\0")
+            return null;
+
+        // For reasons a space is added before one byte characters, we don't want that
+        if (decoded.Length == 2)
+        {
+            if (decoded[0] == '\0')
+            {
+                return decoded[1].ToString();
+            }
+
+            if (decoded[1] == '\0')
+            {
+                return decoded[0].ToString();
+            }
+        }
+
+        return decoded;
+    }
+
     [StructLayout(LayoutKind.Explicit)]
     internal struct TextStruct
     {
@@ -23,7 +44,7 @@ internal unsafe class Text
                 sb.Append(' ');
             }
 
-            return sb.ToString();
+            return sb.ToString().Trim();
         }
 
         /// <summary>
@@ -44,7 +65,7 @@ internal unsafe class Text
                     lastY = line->YPos;
                     curOption++;
                 }
-                
+
                 if (curOption == option)
                 {
                     sb.Append(line->ToString());
@@ -55,16 +76,8 @@ internal unsafe class Text
                 }
             }
 
-            return sb.ToString();
+            return sb.ToString().Trim();
         }
-    }
-
-    // TODO this could probably be done using an encoding or something
-    private static char DecodeChar(byte byteVal)
-    {
-        if (byteVal == 0x8A || byteVal == 0x80)
-            return ' ';
-        return (char)byteVal;
     }
 
     [StructLayout(LayoutKind.Explicit)]
@@ -85,8 +98,12 @@ internal unsafe class Text
                  character != (TextCharacter*)0;
                  character = character->NextCharacter)
             {
-                // Utils.Log($"{DecodeChar(character->Character)}: {character->Character:X}");
-                sb.Append(DecodeChar(character->Character));
+                var decoded = DecodeChar(character->Character);
+                if (decoded != null)
+                {
+                    sb.Append(decoded);
+                }
+                // Utils.Log($"{decoded}: {(short)character->Character:X}");
             }
 
             return sb.ToString();
@@ -96,7 +113,7 @@ internal unsafe class Text
     [StructLayout(LayoutKind.Explicit)]
     internal struct TextCharacter
     {
-        [FieldOffset(0)] internal byte Character;
+        [FieldOffset(0)] internal fixed byte Character[2];
 
         [FieldOffset(0x38)] internal TextCharacter* NextCharacter;
     }
