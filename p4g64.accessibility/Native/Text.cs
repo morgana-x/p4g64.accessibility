@@ -6,13 +6,13 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace p4g64.accessibility.Native;
+
 internal unsafe class Text
 {
     [StructLayout(LayoutKind.Explicit)]
     internal struct TextStruct
     {
-        [FieldOffset(0x40)]
-        internal TextLine* Lines;
+        [FieldOffset(0x40)] internal TextLine* Lines;
 
         public override string ToString()
         {
@@ -22,18 +22,40 @@ internal unsafe class Text
                 sb.Append(line->ToString());
                 sb.Append(' ');
             }
+
             return sb.ToString();
         }
 
-        public TextLine* GetLine(int index)
+        /// <summary>
+        /// Gets the text for the specified selection option
+        /// </summary>
+        /// <param name="option">The index of the option</param>
+        /// <returns>The text of the specified seleciton option</returns>
+        public string GetSelection(int option)
         {
-            int i = 0;
-            for (TextLine* line = Lines; line != (TextLine*)0 && i <= index; line = line->NextLine, i++)
+            int curOption = 0;
+            int lastY = Lines->YPos;
+            StringBuilder sb = new();
+            for (TextLine* line = Lines; line != (TextLine*)0; line = line->NextLine)
             {
-                if (i == index)
-                    return line;
+                // The selections are just identified by being at different Y positions
+                if (lastY != line->YPos)
+                {
+                    lastY = line->YPos;
+                    curOption++;
+                }
+                
+                if (curOption == option)
+                {
+                    sb.Append(line->ToString());
+                }
+                else if (curOption > option)
+                {
+                    break;
+                }
             }
-            return null;
+
+            return sb.ToString();
         }
     }
 
@@ -48,20 +70,25 @@ internal unsafe class Text
     [StructLayout(LayoutKind.Explicit)]
     internal struct TextLine
     {
-        [FieldOffset(0x20)]
-        internal TextCharacter* Characters;
+        [FieldOffset(4)] internal int XPos;
 
-        [FieldOffset(0x38)]
-        internal TextLine* NextLine;
+        [FieldOffset(8)] internal int YPos;
+
+        [FieldOffset(0x20)] internal TextCharacter* Characters;
+
+        [FieldOffset(0x38)] internal TextLine* NextLine;
 
         public override string ToString()
         {
             StringBuilder sb = new();
-            for (TextCharacter* character = Characters; character != (TextCharacter*)0; character = character->NextCharacter)
+            for (TextCharacter* character = Characters;
+                 character != (TextCharacter*)0;
+                 character = character->NextCharacter)
             {
-                //Utils.Log($"{DecodeChar(character->Character)}: {character->Character:X}");
+                // Utils.Log($"{DecodeChar(character->Character)}: {character->Character:X}");
                 sb.Append(DecodeChar(character->Character));
             }
+
             return sb.ToString();
         }
     }
@@ -69,10 +96,8 @@ internal unsafe class Text
     [StructLayout(LayoutKind.Explicit)]
     internal struct TextCharacter
     {
-        [FieldOffset(0)]
-        internal byte Character;
+        [FieldOffset(0)] internal byte Character;
 
-        [FieldOffset(0x38)]
-        internal TextCharacter* NextCharacter;
+        [FieldOffset(0x38)] internal TextCharacter* NextCharacter;
     }
 }
