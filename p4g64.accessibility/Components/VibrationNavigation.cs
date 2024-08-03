@@ -19,6 +19,9 @@ using System.Drawing;
 using Reloaded.Hooks.Definitions;
 using Reloaded.Hooks.Definitions.Enums;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using p4g64.accessibility.Configuration;
+using DavyKager;
+using p4g64.accessibility.Utility;
 
 namespace p4g64.accessibility.Components
 {
@@ -26,25 +29,27 @@ namespace p4g64.accessibility.Components
     {
 
         Process process;
-        static long addr_InteractPromptOpen = 0x11BC7F4;
-        static long addr_CanAttackEnemy = 0x1E4382CC;
-        static long addr_PlayerData = 0xEC0FE8; //0x2E89E6;//0x140ec0fe8;
+        Config config;
+        P4Entities p4Ents;
 
-        static string closetEntPrompt = "48 89 6c 24 18 56 48 83 ec 50 48 89 5c 24 60 48 8b d9 48 8d 0d 25 72 1c 1e e8 56 91 59 00 48 8b 05 e3 f7 7b 00 33 f6 48 8b 6b 48 48 8b 58 08 48 85 db 0f 84 23 01 00 00 48 8b 5b 18 0f 29 74 24 40 f3 0f 10 35 0b d9 67 00 48 85 db 0f 84 04 01 00 00 48 89 7c 24 68 48 8b 3d fa 86 bd 00 0f 29 7c 24 30 f3 0f 10 3d c9 ca 67 00 44 0f 29 44 24 20 f3 44 0f 10 05 76 cb 67 00 66 0f 1f 44 00 00 8b 43 28 25 02 00 00 10 3d 02 00 00 10 0f 85 a3 00 00 00 48 8b 83 e8 02 00 00 48 85 c0 74 0d 48 8b 40 48 83 38 04 0f 82 8a 00 00 00 48 8b 93 90 01 00 00 48 8d 8f 30 03 00 00 48 81 c2 60 03 00 00 0f 28 d7 e8 97 53 03 00 48 8b 3d 88 86 bd 00 83 f8 01 75 61 48 8b 83 90 01 00 00 f3 0f 10 90 60 03 00 00 f3 0f 10 80 64 03 00 00 f3 0f 5c 87 64 03 00 00 f3 0f 5c 97 60 03 00 00 f3 0f 10 88 68 03 00 00 f3 0f 5c 8f 68 03 00 00 f3 0f 59 c0 f3 0f 59 d2 f3 0f 59 c9 f3 0f 58 c2 f3 0f 58 c1 e8 81 c8 53 00 44 0f 2f c0 76 0b 0f 2f f0 76 06 0f 28 f0 48 8b f3 48 8b 9b 50 01 00 00 48 85 db 0f 85 3a ff ff ff 44 0f 28 44 24 20 0f 28 7c 24 30 48 8b 7c 24 68 0f 28 74 24 40 48 8b 5c 24 60 48 89 75 30 48 85 f6 74 4b c7 45 18 01 00 00 00 83 be 70 02 00 00 00 76 3b f7 05 d1 4e 11 1e 00 20 00 00 75 09 80 3d 24 90 d4 00 00 74 26 f3 0f 10 4d 38 0f 57 c0 0f 2e c8 7a 19 75 17 c7 45 04 00 00 00 00 b8 01 00 00 00 48 8b 6c 24 70 48 83 c4 50 5e c3 48 8b 6c 24 70 33 c0 48 83 c4 50 5e c3";
-        bool running = true;
-        bool currentPromptState = false;
-        long baseAddress;
-        // PrepareEntityListDelegate importantThingToCallSoYouCanLoopEntities;
-
-
-
-        ILogger logger;
-        //private Memory _memory;
-
-       // private IReverseWrapper<getClosestEntityDelegate>? _checkObjectDistanceReverseWrapper;
+        DateTime nextVibrate = DateTime.Now;
 
         IReloadedHooks hooks;
-        long entityOffsetListOffset = 0xAA8098;//0x1E4AFACE; //0xAA8098
+        ILogger logger;
+
+        static long addr_InteractPromptOpen = 0x11BC7F4;
+        static long addr_CanAttackEnemy = 0x1E4382CC;
+        static long addr_IsInDialogue = 0x51FE97C;
+        static long addr_IsInPauseMenu = 0x11A63FC;
+
+        bool running = true;
+        bool currentPromptState = false;
+        bool interactPromptOpen = false;
+        bool noEntities = false;
+   
+
+
+        long baseAddress;
 
         uint getControllerSlot()
         {
@@ -58,90 +63,28 @@ namespace p4g64.accessibility.Components
             return 0;
         }
 
-        private List<long> getEntityOffsetsList()
+        float getClosestDistance(float[] offset = null)
         {
-            //importantThingToCallSoYouCanLoopEntities((0x15e4aface)); // pointer to char
+            float smallestDistance = 2000f;
 
-            List<long> offsets = new List<long>();
+            List<long> entOffsets = p4Ents.getEntityOffsetsList();
+            noEntities = entOffsets.Count < 1 ? true : false;
 
-            long baseEntityListPointer = MemoryRead.ReadLong((int)process.Handle, baseAddress + entityOffsetListOffset);
-
-            baseEntityListPointer = MemoryRead.ReadLong((int)process.Handle, baseEntityListPointer + 8);
-
-            if (baseEntityListPointer == 0) // If no list, return
+            if (noEntities)
             {
-                return offsets;
+                return smallestDistance;
             }
 
-            long currentAddress = MemoryRead.ReadLong((int)process.Handle, baseEntityListPointer + 0x18);
-
-            logger.WriteLine("Base entity list address: 0x" + baseEntityListPointer.ToString("X"));
-            logger.WriteLine("Current addr: 0x" + currentAddress.ToString("X"));
-
-            while (currentAddress != 0)
+            float[] pPos = p4Ents.getPlayerPos();
+            if (offset != null)
             {
-                logger.WriteLine("Current entity address: 0x" + currentAddress.ToString("X"));
-                offsets.Add(currentAddress);
-                currentAddress = MemoryRead.ReadLong((int)process.Handle, currentAddress + 0x150);
+                pPos[0] += offset[0];
+                pPos[1] += offset[1];
+                pPos[2] += offset[2];
             }
-            return offsets;
-        }
-        private float[] getPos(long entOffset)
-        {
-            try
-            {
-                long newOffset = MemoryRead.ReadLong((int)process.Handle, (entOffset + 400));
-                float y = MemoryRead.ReadFloat((int)process.Handle, newOffset + 0x364);
-                float x = MemoryRead.ReadFloat((int)process.Handle, newOffset + 0x360);
-                float z = MemoryRead.ReadFloat((int)process.Handle, newOffset + 0x368);
-                return new float[3] { x, y, z };
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-            return new float[3] { 0, 0, 0 };
-
-        }
-        private long getLocalEntity()
-        {
-            long baseEntityListPointer = MemoryRead.ReadLong((int)process.Handle, baseAddress + entityOffsetListOffset);
-            baseEntityListPointer = MemoryRead.ReadLong((int)process.Handle, baseEntityListPointer + 8);
-            if (baseEntityListPointer == 0)
-            {
-                return 0;
-            }
-            long entPointer = MemoryRead.ReadLong((int)process.Handle, baseEntityListPointer + 0x60);
-            if (entPointer == 0)
-            {
-                return 0;
-            }
-            return entPointer + 0x160;
-        }
-        private float[] getPlayerPos()
-        {
-            long playerDataOffset = getLocalEntity();//baseAddress + addr_PlayerData;
-            logger.WriteLine("Player data: 0x" + playerDataOffset.ToString("X"));
-            return getPos(playerDataOffset);
-           // playerDataOffset = MemoryRead.ReadLong((int)process.Handle, playerDataOffset + 0x400);
-            logger.WriteLine("Player data: 0x" + playerDataOffset.ToString("X"));
-            float y = MemoryRead.ReadFloat((int)process.Handle, playerDataOffset + 0x364);
-            float x = MemoryRead.ReadFloat((int)process.Handle, playerDataOffset + 0x360);
-            float z = MemoryRead.ReadFloat((int)process.Handle, playerDataOffset + 0x368);
-            return new float[3] { x, y, z };
-        }
-        
-
-        void fClosets()
-        {
-            List<long> entOffsets = getEntityOffsetsList();
-
-            float[] pPos = getPlayerPos();
-            float smallestDistance = 200f;
             foreach (var o in entOffsets)
             {
-                float[] ePos = getPos(o);
-                logger.WriteLine($"{o}");
+                float[] ePos = p4Ents.getEntPos(o);
                 logger.WriteLine(string.Join(",", ePos));
                 float dx = ePos[0] - pPos[0];
                 float dy = ePos[1] - pPos[1];
@@ -152,92 +95,96 @@ namespace p4g64.accessibility.Components
                     smallestDistance = distance;
                 }
             }
-            closestDist = smallestDistance;
             logger.WriteLine("Smallest Distance: " + smallestDistance);
             logger.WriteLine(string.Join(",", pPos));
+            return smallestDistance;
         }
-        float closestDist = 200f;
-        bool vibrateEnabled = false;
-        DateTime nextVibrate = DateTime.Now;
-        void Vibrate()
+        float getIntensity(float dist)
         {
-            if (!vibrateEnabled)
+            if (interactPromptOpen)
             {
-                return;
+                return 0.3f;
+            }
+
+            return (float)Math.Min(100 / dist, 0.15f);
+        }
+        float getNextVibrate(float dist)
+        {
+            float frequency = (dist + 1) / 1000f * 0.5f;
+            frequency = Math.Min(frequency, 2f);
+            frequency = Math.Max(frequency, 0.2f);
+            return frequency;
+        }
+
+        void Vibrate(bool _interactPrompOpen)
+        {
+
+            interactPromptOpen = _interactPrompOpen;
+
+            if (!interactPromptOpen)
+            {
+                XInput.SetVibration(getControllerSlot(), 0, 0);
             }
             if (DateTime.Now < nextVibrate)
             {
                 return;
             }
-            nextVibrate = DateTime.Now.AddSeconds(0.1f + (10f/closestDist));
-            XInput.SetVibration(getControllerSlot(), 0.15f, 0.15f);
+
+            float closestDistance = getClosestDistance();
+            float closestDistanceLeft = getClosestDistance(new float[] { -10f, 0, 0 });
+            float closestDistanceRight = getClosestDistance(new float[] { 10f, 0, 0 });
+            nextVibrate = DateTime.Now.AddSeconds(getNextVibrate(closestDistance));
+
+            float intensityLeft = getIntensity(closestDistanceLeft);
+            float intensityRight = getIntensity(closestDistanceRight);
+            XInput.SetVibration(getControllerSlot(), intensityLeft, intensityLeft);
+        }
+        bool canMove()
+        {
+            bool inMenu = MemoryRead.ReadByte((int)process.Handle, baseAddress + addr_IsInPauseMenu) == 1 ? true : false;
+            bool inDialouge = MemoryRead.ReadByte((int)process.Handle, baseAddress + addr_IsInDialogue) == 1 ? true : false;
+            return !(inMenu || inDialouge || noEntities);
         }
         void Run()
         {
             logger.WriteLine("Begin run!");
             while (running)
             {
-                fClosets();
                 Thread.Sleep(10);
-                bool newState = MemoryRead.ReadByte((int)process.Handle, baseAddress + addr_InteractPromptOpen) == 1 ? true : false;
-                vibrateEnabled = newState;
-                Vibrate();
-                if ((newState != currentPromptState) && !newState)
+                getClosestDistance();
+                if (!canMove())
                 {
-                    XInput.SetVibration(getControllerSlot(), 0f, 0f);
+                    XInput.SetVibration(getControllerSlot(), 0, 0);
+                    continue;
                 }
-                currentPromptState = newState;
 
+                bool interactPromptOpen = MemoryRead.ReadByte((int)process.Handle, baseAddress + addr_InteractPromptOpen) == 1 ? true : false;
 
+     
+                Vibrate(interactPromptOpen);
+
+                if ( (interactPromptOpen != currentPromptState) && interactPromptOpen && config.TextToSpeechInteractPrompt)
+                {
+                    Tolk.Speak("Interact Prompt");
+                }
+
+                currentPromptState = interactPromptOpen;
             }
         }
-        private IReverseWrapper<getClosestEntityDelegate>? _speedChangeReverseWrapper;
-        private IAsmHook? _interactPromptUpdateHook;
-        internal VibrationNavigation(ILogger _logger, IReloadedHooks _hooks)
+
+        internal VibrationNavigation(ILogger _logger, IReloadedHooks _hooks, Config _config, P4Entities _p4Ents)
         {
-
-
             _logger.WriteLine("Hello vibration navigation!");
 
             process = Process.GetCurrentProcess();
             baseAddress = MemoryRead.GetProcessBaseAddress(process);
+
             logger = _logger;
             hooks = _hooks;
-
-  
-            SigScan(closetEntPrompt, "P4G_InteractableObject_CheckInRange_Hook", (nint address) => {
-                logger.WriteLine("Address: 0x" + address.ToString("X"));
-                logger.WriteLine("Creating hook!");
-                string[] newFunc =
-                {
-                    "use64",
-                    //"push",
-                    $"{_hooks.Utilities.GetAbsoluteCallMnemonics(fClosets, out _speedChangeReverseWrapper)}",
-                    //"pop"
-                };
-                //_interactPromptUpdateHook = _hooks.CreateAsmHook(newFunc, address, AsmHookBehaviour.ExecuteAfter).Activate();
-                // _hooks.CreateHook<getClosestEntityDelegate>(findClosest, address).Activate();
-
-            });
-
-        
+            config = _config;
+            p4Ents = _p4Ents;
 
             Task.Run(Run);
-
         }
-        [Function(CallingConventions.Microsoft)]
-        private delegate void getClosestEntityDelegate();
-        /*public void findClosest(long interactPromptInstanceOffset)
-        {
-            logger.WriteLine("Find closest ent hook!");
-            fClosets();
-          
-            return;
-        }
-
-
-
-        [Function(CallingConventions.Microsoft)]
-        private delegate void getClosestEntityDelegate(long interactPromptInstanceOffset);*/
     }
 }

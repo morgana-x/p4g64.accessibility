@@ -8,6 +8,12 @@ public class Config : Configurable<Config>
     [Description("Logs additional information to the console that is useful for debugging.")]
     [DefaultValue(false)]
     public bool DebugEnabled { get; set; } = false;
+
+
+    [DisplayName("Text to Speech Interact Prompt")]
+    [Description("Enables saying when you can Interact with an object/npc.")]
+    [DefaultValue(false)]
+    public bool TextToSpeechInteractPrompt { get; set; } = false;
 }
 
 /// <summary>

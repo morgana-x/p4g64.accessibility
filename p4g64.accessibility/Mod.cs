@@ -4,6 +4,7 @@ using p4g64.accessibility.Configuration;
 using p4g64.accessibility.Native;
 using p4g64.accessibility.Native.Text;
 using p4g64.accessibility.Template;
+using p4g64.accessibility.Utility;
 using Reloaded.Hooks.ReloadedII.Interfaces;
 using Reloaded.Memory.Streams;
 using Reloaded.Mod.Interfaces;
@@ -49,7 +50,7 @@ public class Mod : ModBase // <= Do not Remove.
     private Dialogue _dialogue;
     private TitleBar _titleBar;
     private VibrationNavigation _vibrationNav;
-
+    private P4Entities _p4Ents;
     public Mod(ModContext context)
     {
         _modLoader = context.ModLoader;
@@ -58,14 +59,15 @@ public class Mod : ModBase // <= Do not Remove.
         _owner = context.Owner;
         _configuration = context.Configuration;
         _modConfig = context.ModConfig;
-        
+
+        _p4Ents = new P4Entities();
 
         Initialise(_logger, _configuration, _modLoader);
         AtlusEncoding.Initiailse(_modLoader.GetDirectoryForModId(_modConfig.ModId));
         var modDir = _modLoader.GetDirectoryForModId(_modConfig.ModId);
 
 
-        _vibrationNav = new VibrationNavigation(_logger, _hooks);
+        _vibrationNav = new VibrationNavigation(_logger, _hooks, _configuration, _p4Ents);
 
         // Add the mod's folder to the path so tolk will load screen reader dlls
         Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + ";" + modDir, EnvironmentVariableTarget.Process);
