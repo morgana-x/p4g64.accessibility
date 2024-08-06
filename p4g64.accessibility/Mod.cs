@@ -50,6 +50,7 @@ public class Mod : ModBase // <= Do not Remove.
     private Dialogue _dialogue;
     private TitleBar _titleBar;
     private VibrationNavigation _vibrationNav;
+    private TeleportNavigation _teleportNav;
     private P4Entities _p4Ents;
     public Mod(ModContext context)
     {
@@ -60,14 +61,14 @@ public class Mod : ModBase // <= Do not Remove.
         _configuration = context.Configuration;
         _modConfig = context.ModConfig;
 
-        _p4Ents = new P4Entities();
+   
 
         Initialise(_logger, _configuration, _modLoader);
         AtlusEncoding.Initiailse(_modLoader.GetDirectoryForModId(_modConfig.ModId));
         var modDir = _modLoader.GetDirectoryForModId(_modConfig.ModId);
 
+        _p4Ents = new P4Entities(_logger);
 
-        _vibrationNav = new VibrationNavigation(_logger, _hooks, _configuration, _p4Ents);
 
         // Add the mod's folder to the path so tolk will load screen reader dlls
         Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + ";" + modDir, EnvironmentVariableTarget.Process);
@@ -84,7 +85,9 @@ public class Mod : ModBase // <= Do not Remove.
         }
         _dialogue = new Dialogue(_hooks!);
         _titleBar = new TitleBar(_hooks!);
-        
+        _vibrationNav = new VibrationNavigation(_logger, _hooks, _configuration, _p4Ents);
+        _teleportNav = new TeleportNavigation(_logger, _hooks, _configuration, _p4Ents);
+
     }
 
     #region Standard Overrides

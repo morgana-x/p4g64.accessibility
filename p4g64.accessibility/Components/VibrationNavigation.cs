@@ -1,24 +1,6 @@
 ﻿using Reloaded.Hooks.Definitions;
-using Reloaded.Hooks.Definitions.Enums;
-using Reloaded.Hooks.Definitions.X64;
 using Reloaded.Mod.Interfaces;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Net;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
-using static p4g64.accessibility.Utils;
-using Reloaded.Memory;
-using static Reloaded.Hooks.Definitions.X64.FunctionAttribute;
-using System.Runtime.InteropServices;
-using Reloaded.Hooks.Definitions.X64;
-using System.Drawing;
-using Reloaded.Hooks.Definitions;
-using Reloaded.Hooks.Definitions.Enums;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using p4g64.accessibility.Configuration;
 using DavyKager;
 using p4g64.accessibility.Utility;
@@ -63,18 +45,26 @@ namespace p4g64.accessibility.Components
             return 0;
         }
 
+        float dist(float[] ePos, float[] pPos)
+        {
+            float dx = ePos[0] - pPos[0];
+            float dy = ePos[1] - pPos[1];
+            float dz = ePos[2] - pPos[2];
+            return (float)Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+        }
         float getClosestDistance(float[] offset = null)
         {
             float smallestDistance = 2000f;
 
-            List<long> entOffsets = p4Ents.getEntityOffsetsList();
-            noEntities = entOffsets.Count < 1 ? true : false;
+            List<long> npcEntities = p4Ents.getNPCEntitiesOffsets();
+            List<long> objectEntities = p4Ents.getInteractableNonNPCEntitiesOffsets();
+            noEntities = npcEntities.Count + objectEntities.Count < 1 ? true : false;
 
             if (noEntities)
             {
                 return smallestDistance;
             }
-
+           
             float[] pPos = p4Ents.getPlayerPos();
             if (offset != null)
             {
@@ -82,21 +72,30 @@ namespace p4g64.accessibility.Components
                 pPos[1] += offset[1];
                 pPos[2] += offset[2];
             }
-            foreach (var o in entOffsets)
+            foreach (var o in npcEntities)
             {
                 float[] ePos = p4Ents.getEntPos(o);
-                logger.WriteLine(string.Join(",", ePos));
-                float dx = ePos[0] - pPos[0];
-                float dy = ePos[1] - pPos[1];
-                float dz = ePos[2] - pPos[2];
-                float distance = (float)Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+               // logger.WriteLine(string.Join(",", ePos));
+
+                float distance = dist(ePos, pPos);
                 if (distance < smallestDistance)
                 {
                     smallestDistance = distance;
                 }
             }
-            logger.WriteLine("Smallest Distance: " + smallestDistance);
-            logger.WriteLine(string.Join(",", pPos));
+            foreach (var o in objectEntities)
+            {
+                float[] ePos = p4Ents.getEntPosRaw(o);
+               // logger.WriteLine(string.Join(",", ePos));
+
+                float distance = dist(ePos, pPos);
+                if (distance < smallestDistance)
+                {
+                    smallestDistance = distance;
+                }
+            }
+           // logger.WriteLine("Smallest Distance: " + smallestDistance);
+           // logger.WriteLine(string.Join(",", pPos));
             return smallestDistance;
         }
         float getIntensity(float dist)
