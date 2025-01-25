@@ -38,8 +38,8 @@ namespace p4g64.accessibility.Utility
             try
             {
                 long newOffset = MemoryRead.ReadLong((int)process.Handle, (entOffset + 400));
-                float y = MemoryRead.ReadFloat((int)process.Handle, newOffset + 0x364);
                 float x = MemoryRead.ReadFloat((int)process.Handle, newOffset + 0x360);
+                float y = MemoryRead.ReadFloat((int)process.Handle, newOffset + 0x364);
                 float z = MemoryRead.ReadFloat((int)process.Handle, newOffset + 0x368);
                 return new float[3] { x, y, z };
             }
@@ -55,8 +55,8 @@ namespace p4g64.accessibility.Utility
             try
             {
                 long newOffset = MemoryRead.ReadLong((int)process.Handle, (entOffset + 400));
-                MemoryRead.WriteFloat((int)process.Handle, newOffset + 0x364,x);
-                MemoryRead.WriteFloat((int)process.Handle, newOffset + 0x360,y);
+                MemoryRead.WriteFloat((int)process.Handle, newOffset + 0x360,x);
+                MemoryRead.WriteFloat((int)process.Handle, newOffset + 0x364,y);
                 MemoryRead.WriteFloat((int)process.Handle, newOffset + 0x368,z);
                 return;
             }
@@ -64,6 +64,10 @@ namespace p4g64.accessibility.Utility
             {
                 Console.WriteLine(e);
             }
+        }
+        public void setEntPos(long entOffset, float[] pos)
+        {
+            setEntPos(entOffset, pos[0], pos[1], pos[2]);
         }
         public float[] getPlayerPos()
         {
