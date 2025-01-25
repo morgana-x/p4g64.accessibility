@@ -1,20 +1,14 @@
 ﻿using Reloaded.Mod.Interfaces;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using static p4g64.accessibility.Utils;
 namespace p4g64.accessibility.Utility
 {
     internal class P4Entities
     {
-        static long addr_InteractNpcList = 0xAA8098;
-        static long addr_InteractObjectList = 0x1E4382C0;
-        static long addr_PlayerData = 0xEC0FE8;
+        static long addr_InteractNpcList;
+        static long addr_PlayerData = 0xEC0FE8; // Todo: Sigscan, although bytes around it are initialised at runtime and may be random
 
-        string npcEntityListSignature = "40 a3 ec 40 01 00 00 00";
+        static string npcEntityListSignature = "40 a3 ec 40 01";
 
         Process process;
         long baseAddress;
@@ -27,9 +21,7 @@ namespace p4g64.accessibility.Utility
             baseEntityListPointer = MemoryRead.ReadLong((int)process.Handle, baseEntityListPointer + 8);
 
             if (baseEntityListPointer == 0) // If no list, return
-            {
                 return offsets;
-            }
 
             long currentAddress = MemoryRead.ReadLong((int)process.Handle, baseEntityListPointer + 0x18);
 
@@ -40,46 +32,7 @@ namespace p4g64.accessibility.Utility
             }
             return offsets;
         }
-        public List<long> getInteractableNonNPCEntitiesOffsets()
-        {
-            List<long> offsets = new List<long>();
 
-            long baseEntityListPointer = baseAddress + addr_InteractObjectList;
-
-            long entStart = MemoryRead.ReadLong((int)process.Handle, baseEntityListPointer);
-            long entOffset = MemoryRead.ReadLong((int)process.Handle, entStart + 0x58);
-
-            if (entOffset == 0) // If no list, return
-            {
-                return offsets;
-            }
-
-            for (int i=0; i < 8; i++)
-            {
-                entStart = MemoryRead.ReadLong((int)process.Handle, baseEntityListPointer);
-                entOffset = MemoryRead.ReadLong((int)process.Handle, entStart + 0x58);
-                offsets.Add(entOffset);
-                baseEntityListPointer += 1; // ????
-               // currentAddress = MemoryRead.ReadLong((int)process.Handle, currentAddress + 0x150);
-            }
-            return offsets;
-        }
-        public float[] getEntPosRaw(long entOffset)
-        {
-            try
-            {
-                float y = MemoryRead.ReadFloat((int)process.Handle, entOffset + 0x364);
-                float x = MemoryRead.ReadFloat((int)process.Handle, entOffset + 0x360);
-                float z = MemoryRead.ReadFloat((int)process.Handle, entOffset + 0x368);
-                return new float[3] { x, y, z };
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-            return new float[3] { 0, 0, 0 };
-
-        }
         public float[] getEntPos(long entOffset)
         {
             try
@@ -96,6 +49,21 @@ namespace p4g64.accessibility.Utility
             }
             return new float[3] { 0, 0, 0 };
 
+        }
+        public void setEntPos(long entOffset, float x, float y, float z)
+        {
+            try
+            {
+                long newOffset = MemoryRead.ReadLong((int)process.Handle, (entOffset + 400));
+                MemoryRead.WriteFloat((int)process.Handle, newOffset + 0x364,x);
+                MemoryRead.WriteFloat((int)process.Handle, newOffset + 0x360,y);
+                MemoryRead.WriteFloat((int)process.Handle, newOffset + 0x368,z);
+                return;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
         public float[] getPlayerPos()
         {

@@ -57,8 +57,8 @@ namespace p4g64.accessibility.Components
             float smallestDistance = 2000f;
 
             List<long> npcEntities = p4Ents.getNPCEntitiesOffsets();
-            List<long> objectEntities = p4Ents.getInteractableNonNPCEntitiesOffsets();
-            noEntities = npcEntities.Count + objectEntities.Count < 1 ? true : false;
+           // List<long> objectEntities = p4Ents.getInteractableNonNPCEntitiesOffsets();
+            noEntities = npcEntities.Count /* + objectEntities.Count */< 1 ? true : false;
 
             if (noEntities)
             {
@@ -75,7 +75,7 @@ namespace p4g64.accessibility.Components
             foreach (var o in npcEntities)
             {
                 float[] ePos = p4Ents.getEntPos(o);
-               // logger.WriteLine(string.Join(",", ePos));
+                logger.WriteLine(string.Join(",", ePos));
 
                 float distance = dist(ePos, pPos);
                 if (distance < smallestDistance)
@@ -83,19 +83,17 @@ namespace p4g64.accessibility.Components
                     smallestDistance = distance;
                 }
             }
-            foreach (var o in objectEntities)
+            /*foreach (var o in objectEntities)
             {
                 float[] ePos = p4Ents.getEntPosRaw(o);
-               // logger.WriteLine(string.Join(",", ePos));
+                logger.WriteLine(string.Join(",", ePos));
 
                 float distance = dist(ePos, pPos);
                 if (distance < smallestDistance)
                 {
                     smallestDistance = distance;
                 }
-            }
-           // logger.WriteLine("Smallest Distance: " + smallestDistance);
-           // logger.WriteLine(string.Join(",", pPos));
+            }*/
             return smallestDistance;
         }
         float getIntensity(float dist)
@@ -149,7 +147,7 @@ namespace p4g64.accessibility.Components
             logger.WriteLine("Begin run!");
             while (running)
             {
-                Thread.Sleep(10);
+                Thread.Sleep(5);
                 getClosestDistance();
                 if (!canMove())
                 {
